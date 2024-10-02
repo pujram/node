@@ -17,6 +17,7 @@ userRouter.get('/user/requests/received',userAuth, async (req,res)=>{
         res.status(400).send('Error: '+err.message)
     }
 })
+
 userRouter.get('/user/connections',userAuth,async (req,res)=>{
     try{
         const loggedInUser = req.userData
@@ -28,29 +29,27 @@ userRouter.get('/user/connections',userAuth,async (req,res)=>{
         res.status(400).send('something went wrong: '+err.message)
     }
 })
-userRouter.get('/user/getAllUsers',userAuth, async(req,res)=>{
+userRouter.get('/feed', userAuth,async(req,res)=>{
     try{
+        const loggedInUser = req.userData
+        const connectionData = await connectionModel.find({
+            $or:[{fromUserId:loggedInUser._id},{toUserId:loggedInUser._id}]
+        })
+        let connectionSet = new Set()
 
-        const userData =await  user.find({})
-        if(!userData){
-            throw new Error('No Data found')
-        }
-        res.send(userData)
+        connectionData.forEach((val)=>{
+           connectionSet.add(val.fromUserId.toString())
+           connectionSet.add(val.toUserId.toString())
+        })
+        const feedData = await user.find({
+           $and:[{_id:{$nin:Array.from(connectionSet)}},{_id:{$ne:loggedInUser._id}}]
+        }).select("firstName lastName age")
+        
+        res.json({message:'feed data' , data:feedData})
     }catch(err){
         res.status(400).send('something went wrong: '+err.message)
     }
 })
-userRouter.delete('/user/delete', userAuth, async (req,res)=>{
-      const userId = req.body.userId
-    try{
-       const userData = await user.findByIdAndDelete(userId)
-       if(!userData){
-        throw new Error('delete is not possible')
-       }
-        res.send('data deleted successfully')
-    }catch(err){
-        res.status(400).send('something went wrong: '+err.message)
-    }
-})
+
 
 module.exports = userRouter
